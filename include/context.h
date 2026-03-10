@@ -43,7 +43,8 @@ struct psz_context {
   bool report_cr{false};
   bool report_cr_est{false};
   bool verbose{false};
-
+  bool dump_qcodes{false};
+  char dump_qcodes_path[500]{0};
   pszdevice device;
 
   // TODO: (need fix) if no default is specified, empty 0 -> lorenzo

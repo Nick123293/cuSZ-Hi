@@ -231,6 +231,25 @@ void pszctx_parse_control_string(
     else if (optmatch({"rev_3"})) {
       ctx->intp_param.reverse[3] = psz_helper::str2int(v);
     }
+    else if (optmatch({"dump_qcodes"})) {
+      if (v == "on" || v == "ON" || v == "1" || v == "true") {
+        ctx->dump_qcodes = true;
+      }
+      else if (v == "off" || v == "OFF" || v == "0" || v == "false") {
+        ctx->dump_qcodes = false;
+      }
+      else {
+        // convenient behavior: treat any non-bool string as a path and enable dumping
+        ctx->dump_qcodes = true;
+        std::strncpy(ctx->dump_qcodes_path, v.c_str(), sizeof(ctx->dump_qcodes_path) - 1);
+        ctx->dump_qcodes_path[sizeof(ctx->dump_qcodes_path) - 1] = '\0';
+      }
+    }
+    else if (optmatch({"dump_qcodes_path", "qcodes_path"})) {
+      ctx->dump_qcodes = true;
+      std::strncpy(ctx->dump_qcodes_path, v.c_str(), sizeof(ctx->dump_qcodes_path) - 1);
+      ctx->dump_qcodes_path[sizeof(ctx->dump_qcodes_path) - 1] = '\0';
+    }
   }
 }
 
@@ -431,6 +450,16 @@ void pszctx_parse_argv(pszctx* ctx, int const argc, char** const argv)
             "[psz::error] --sycl-device is not supported backend other than "
             "CUDA/HIP.");
 #endif
+      }
+      else if (optmatch({"--dump-qcodes"})) {
+        ctx->dump_qcodes = true;
+      }
+      else if (optmatch({"--dump-qcodes-path"})) {
+        check_next();
+        ctx->dump_qcodes = true;
+        auto p = std::string(argv[++i]);
+        std::strncpy(ctx->dump_qcodes_path, p.c_str(), sizeof(ctx->dump_qcodes_path) - 1);
+        ctx->dump_qcodes_path[sizeof(ctx->dump_qcodes_path) - 1] = '\0';
       }
       else {
         const char* notif_prefix = "invalid option value at position ";

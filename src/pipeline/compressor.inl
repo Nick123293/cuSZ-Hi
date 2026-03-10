@@ -15,7 +15,8 @@
 #define A2519F0E_602B_4798_A8EF_9641123095D9
 
 #include <stdexcept>
-
+#include <fstream>
+#include <vector>
 #include "busyheader.hh"
 #include "compressor.hh"
 #include "cusz/type.h"
@@ -40,6 +41,29 @@
 #elif defined(PSZ_USE_HIP)
 #define PSZ_HIST(...) psz::histogram<PROPER_GPU_BACKEND, E>(__VA_ARGS__);
 #endif
+
+template <class CodeT>
+static void dump_device_buffer_to_file(
+    CodeT const* dptr,
+    size_t n,
+    const std::string& path,
+    cudaStream_t stream)
+{
+    std::vector<CodeT> h(n);
+
+    cudaError_t st = cudaMemcpyAsync(
+        h.data(), dptr, n * sizeof(CodeT), cudaMemcpyDeviceToHost, stream);
+    if (st != cudaSuccess) throw std::runtime_error(cudaGetErrorString(st));
+
+    st = cudaStreamSynchronize(stream);
+    if (st != cudaSuccess) throw std::runtime_error(cudaGetErrorString(st));
+
+    std::ofstream ofs(path, std::ios::binary);
+    if (!ofs) throw std::runtime_error("failed to open dump file: " + path);
+
+    ofs.write(reinterpret_cast<char const*>(h.data()), n * sizeof(CodeT));
+    if (!ofs) throw std::runtime_error("failed to write dump file: " + path);
+}
 
 namespace cusz {
 
@@ -140,6 +164,18 @@ COR::compress_histogram(pszctx* ctx, void* stream)
 {
   auto spline_in_use = [&]() { return ctx->pred_type == Spline; };
   auto booklen = ctx->radius * 2;
+
+
+  #ifdef PSZ_USE_CUDA
+    if (spline_in_use() && ctx->dump_qcodes) {
+      using CodeT = uint8_t; // verify locally
+      dump_device_buffer_to_file<CodeT>(
+        reinterpret_cast<CodeT const*>(mem->ectrl()),
+        len,
+        ctx->dump_qcodes_path,
+        static_cast<cudaStream_t>(stream));
+    }
+  #endif
 
   /* statistics: histogram */
   {
