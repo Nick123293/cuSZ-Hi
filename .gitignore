@@ -45,7 +45,7 @@ build-dpsz
 Release/
 Debug/
 RelWithDebInfo/
-
+build/
 # intermediate and binary
 dummy_cxlorenzo
 dummy_xlorenzo2d
