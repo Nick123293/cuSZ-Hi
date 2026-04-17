@@ -165,18 +165,6 @@ COR::compress_histogram(pszctx* ctx, void* stream)
   auto spline_in_use = [&]() { return ctx->pred_type == Spline; };
   auto booklen = ctx->radius * 2;
 
-
-  #ifdef PSZ_USE_CUDA
-    if (spline_in_use() && ctx->dump_qcodes) {
-      using CodeT = uint8_t; // verify locally
-      dump_device_buffer_to_file<CodeT>(
-        reinterpret_cast<CodeT const*>(mem->ectrl()),
-        len,
-        ctx->dump_qcodes_path,
-        static_cast<cudaStream_t>(stream));
-    }
-  #endif
-
   /* statistics: histogram */
   {
     PSZ_HIST(mem->ectrl(), len, mem->hist(), booklen, &time_hist, stream);
@@ -269,6 +257,16 @@ COR::compress(pszctx* ctx, T* in, BYTE** out, size_t* outlen, void* stream)
   PSZSANITIZE_PSZCTX(ctx);
 
   compress_predict(ctx, in, stream);
+  #ifdef PSZ_USE_CUDA
+    if (spline_in_use() && ctx->dump_qcodes) {
+      using CodeT = uint8_t; // verify locally
+      dump_device_buffer_to_file<CodeT>(
+        reinterpret_cast<CodeT const*>(mem->ectrl()),
+        len,
+        ctx->dump_qcodes_path,
+        static_cast<cudaStream_t>(stream));
+    }
+  #endif
   if (ctx->use_huffman) {
     compress_histogram(ctx, stream);
     compress_encode(ctx, stream);
