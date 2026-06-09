@@ -178,19 +178,18 @@ struct psz_utils {
 
     static bool check_dtype(const std::string& val, bool delay_failure = true)
     {
-        auto legal = (val == "f32") or (val == "f4");
-        // auto legal = (val == "f32") or (val == "f64");
+        auto legal = (val == "f32") or (val == "f4") or (val == "f64") or (val == "f8");
         if (not legal)
-            if (not delay_failure) throw std::runtime_error("Only `f32`/`f4` is supported temporarily.");
+            if (not delay_failure) throw std::runtime_error("Only `f32`/`f4` and `f64`/`f8` are supported.");
 
         return legal;
     }
 
     static bool check_dtype(const psz_dtype& val, bool delay_failure = true)
     {
-        auto legal = (val == F4);
+        auto legal = (val == F4) or (val == F8);
         if (not legal)
-            if (not delay_failure) throw std::runtime_error("Only `f32` is supported temporarily.");
+            if (not delay_failure) throw std::runtime_error("Only `f32`/`f4` and `f64`/`f8` are supported.");
 
         return legal;
     }

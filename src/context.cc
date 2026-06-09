@@ -341,6 +341,8 @@ void pszctx_parse_argv(pszctx* ctx, int const argc, char** const argv)
           ctx->dtype = F4;
         else if (s == "f64" or s == "f8")
           ctx->dtype = F8;
+        else
+          throw std::runtime_error("Only `f32`/`f4` and `f64`/`f8` are supported.");
       }
       else if (optmatch({"-i", "--input"})) {
         check_next();
@@ -578,6 +580,21 @@ void pszctx_validate(pszctx* ctx)
       cerr << LOG_ERR << "must specify data type" << endl;
       to_abort = true;
     }
+  }
+  if (ctx->dtype == F8 and ctx->pred_type == Spline and ctx->task_construct) {
+    cerr << LOG_ERR
+         << "f64 Spline is not implemented yet; use `-p lorenzo` for "
+            "double-precision compression."
+         << endl;
+    to_abort = true;
+  }
+  if (ctx->quant_bytewidth == 1 and ctx->radius > 128 and
+      ctx->task_construct) {
+    cerr << LOG_ERR
+         << "radius values above 128 require a wider quantization-code type; "
+            "the CLI currently exposes the default u1 path."
+         << endl;
+    to_abort = true;
   }
   // if (quant_bytewidth == 1)
   //     assert(dict_size <= 256);

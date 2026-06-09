@@ -101,7 +101,11 @@ void psz::sanitize<T, E, H>::sanitize_hist_out(
       });
 }
 
+template struct psz::sanitize<f4, u1, u4>;
+template struct psz::sanitize<f4, u2, u4>;
 template struct psz::sanitize<f4, u4, u4>;
+template struct psz::sanitize<f8, u1, u4>;
+template struct psz::sanitize<f8, u2, u4>;
 template struct psz::sanitize<f8, u4, u4>;
 template struct psz::sanitize<f4, u4, u8>;
 template struct psz::sanitize<f8, u4, u8>;

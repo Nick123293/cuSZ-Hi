@@ -29,12 +29,37 @@ pszframe* pszdefault_framework()
       20};
 }
 
+namespace {
+
+void ensure_supported_pipeline(psz_dtype dtype, psz_predtype pred_type)
+{
+  if (dtype == F8 and pred_type == Spline) {
+    throw std::runtime_error(
+        "F8 with Spline is not implemented yet; use the Lorenzo predictor "
+        "for double-precision data.");
+  }
+}
+
+void ensure_matching_dtype(psz_dtype requested, psz_dtype actual)
+{
+  if (requested != actual) {
+    throw std::runtime_error(
+        "Compressor dtype does not match the context/archive dtype.");
+  }
+}
+
+}  // namespace
+
 pszcompressor* psz_create(pszframe* _framework, psz_dtype _type)
 {
   auto comp = new pszcompressor{.framework = _framework, .type = _type};
 
   if (comp->type == F4) {
     using Compressor = cusz::CompressorF4;
+    comp->compressor = new Compressor();
+  }
+  else if (comp->type == F8) {
+    using Compressor = cusz::CompressorF8;
     comp->compressor = new Compressor();
   }
   else {
@@ -55,13 +80,19 @@ pszerror psz_compress_init(
     pszcompressor* comp, pszlen const uncomp_len, pszctx* ctx)
 {
   comp->ctx = ctx;
+  comp->ctx->dtype = comp->type;
   pszctx_set_len(comp->ctx, uncomp_len);
+  ensure_supported_pipeline(comp->type, comp->ctx->pred_type);
 
   // Be cautious of autotuning! The default value of pardeg is not robust.
   cusz::CompressorHelper::autotune_coarse_parhf(comp->ctx);
 
   if (comp->type == F4) {
     auto cor = (cusz::CompressorF4*)(comp->compressor);
+    cor->init(comp->ctx);
+  }
+  else if (comp->type == F8) {
+    auto cor = (cusz::CompressorF8*)(comp->compressor);
     cor->init(comp->ctx);
   }
   else {
@@ -85,6 +116,14 @@ pszerror psz_compress(
     cor->export_header(*header);
     cor->export_timerecord((psz::TimeRecord*)record);
   }
+  else if (comp->type == F8) {
+    auto cor = (cusz::CompressorF8*)(comp->compressor);
+
+    cor->compress(
+        comp->ctx, (f8*)(in), compressed, comp_bytes, stream);
+    cor->export_header(*header);
+    cor->export_timerecord((psz::TimeRecord*)record);
+  }
   else {
     throw std::runtime_error(
         std::string(__FUNCTION__) + ": Type is not supported.");
@@ -96,8 +135,15 @@ pszerror psz_compress(
 pszerror psz_decompress_init(pszcompressor* comp, pszheader* header)
 {
   comp->header = header;
+  ensure_matching_dtype(comp->type, header->dtype);
+  ensure_supported_pipeline(header->dtype, header->pred_type);
+
   if (comp->type == F4) {
     auto cor = (cusz::CompressorF4*)(comp->compressor);
+    cor->init(header);
+  }
+  else if (comp->type == F8) {
+    auto cor = (cusz::CompressorF8*)(comp->compressor);
     cor->init(header);
   }
   else {
@@ -117,6 +163,13 @@ pszerror psz_decompress(
 
     cor->decompress(
         comp->header, compressed, (f4*)(decompressed), (f4*)(outlier_tmp), (GpuStreamT)stream);
+    cor->export_timerecord((psz::TimeRecord*)record);
+  }
+  else if (comp->type == F8) {
+    auto cor = (cusz::CompressorF8*)(comp->compressor);
+
+    cor->decompress(
+        comp->header, compressed, (f8*)(decompressed), (f8*)(outlier_tmp), (GpuStreamT)stream);
     cor->export_timerecord((psz::TimeRecord*)record);
   }
   else {

@@ -13,6 +13,8 @@
 #ifndef CUSZ_FRAMEWORK
 #define CUSZ_FRAMEWORK
 
+#include <type_traits>
+
 #include "compressor.hh"
 #include "cusz/type.h"
 #include "hf/hf.hh"
@@ -27,7 +29,11 @@ using timerecord_t = TimeRecord*;
 
 namespace cusz {
 
-template <typename InDtype, bool FastLowPrecision = true>
+template <
+    typename InDtype,
+    typename ErrCtrl = u1,
+    typename Metadata = u4,
+    bool FastLowPrecision = std::is_same<InDtype, f4>::value>
 struct TEHM {
  public:
   /**
@@ -37,21 +43,24 @@ struct TEHM {
    *  outlier <--+  |   +---- default fast-low-precision
    *                v
    *        Encoder<E, H>
-   */
+  */
 
   using T = InDtype;
-  using E = ErrCtrlTrait<1, false>::type;  // predefined for mem. overlapping
+  using E = ErrCtrl;  // predefined for mem. overlapping
   using FP = typename FastLowPrecisionTrait<FastLowPrecision>::type;
   // using H = u4;
   // using Hfailsafe = u8;
-  using M = MetadataTrait<4>::type;
+  using M = Metadata;
 
   /* Lossless Codec*/
   using Codec = cusz::HuffmanCodec<E, M>;
 };
 
-using CompressorF4 = cusz::Compressor<cusz::TEHM<f4>>;
-using CompressorF8 = cusz::Compressor<cusz::TEHM<f8>>;
+using CompressorF4 = cusz::Compressor<cusz::TEHM<f4, u1, u4, true>>;
+using CompressorF8 = cusz::Compressor<cusz::TEHM<f8, u1, u4, false>>;
+using CompressorF8Fast = cusz::Compressor<cusz::TEHM<f8, u1, u4, true>>;
+using CompressorF8U2 = cusz::Compressor<cusz::TEHM<f8, u2, u4, false>>;
+using CompressorF8U4 = cusz::Compressor<cusz::TEHM<f8, u4, u4, false>>;
 
 }  // namespace cusz
 

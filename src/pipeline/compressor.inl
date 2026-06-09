@@ -16,6 +16,7 @@
 
 #include <stdexcept>
 #include <fstream>
+#include <type_traits>
 #include <vector>
 #include "busyheader.hh"
 #include "compressor.hh"
@@ -126,10 +127,17 @@ COR::compress_predict(pszctx* ctx, T* in, void* stream)
   {
     if (spline_in_use()) {
 #ifdef PSZ_USE_CUDA
-      mem->od->dptr(in);
-      spline_construct(
-          mem->od, mem->ac, mem->e, (void*)mem->compact, eb, ctx->rel_eb,radius, ctx->intp_param,
-          &time_pred, stream,mem->pe);
+      if constexpr (std::is_same<T, f8>::value) {
+        throw std::runtime_error(
+            "[psz::error] f64 Spline is not implemented yet; use "
+            "predictor=lorenzo for double-precision data.");
+      }
+      else {
+        mem->od->dptr(in);
+        spline_construct(
+            mem->od, mem->ac, mem->e, (void*)mem->compact, eb, ctx->rel_eb,
+            radius, ctx->intp_param, &time_pred, stream, mem->pe);
+      }
 #else
       throw runtime_error(
           "[psz::error] spline_construct not implemented other than CUDA.");
@@ -233,7 +241,9 @@ COR::compress_tcms(pszctx* ctx, void* stream)
   auto spline_in_use = [&]() { return ctx->pred_type == Spline; };
 
   /* TCMS lossless compression */
-  TCMS_COMPRESS(mem->ectrl(), len, &comp_tcms_out, &comp_tcms_outlen, &time_tcms, stream);
+  TCMS_COMPRESS(
+      reinterpret_cast<uint8_t*>(mem->ectrl()), len * sizeof(E),
+      &comp_tcms_out, &comp_tcms_outlen, &time_tcms, stream);
   if (spline_in_use()) { PSZDBG_LOG("TCMS: done"); }
   
   return this;
@@ -300,6 +310,9 @@ try
   auto dst = [&](int FIELD, szt offset = 0) {
     return (void*)(mem->compressed() + header.entry[FIELD] + offset);
   };
+  auto align_up = [](szt offset, szt alignment) {
+    return ((offset + alignment - 1) / alignment) * alignment;
+  };
 
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
   auto concat_d2d = [&](int FIELD, void* src, u4 dst_offset = 0) {
@@ -324,11 +337,15 @@ try
   nbyte[Header::ANCHOR] = pred_type == Spline ? sizeof(T) * mem->ac->len() : 0;
   nbyte[Header::SPFMT] = (sizeof(T) + sizeof(M)) * splen;
 
-  header.entry[0] = 0;
-  // *.END + 1; need to know the ending position
-  for (auto i = 1; i < Header::END + 1; i++) header.entry[i] = nbyte[i - 1];
-  for (auto i = 1; i < Header::END + 1; i++)
-    header.entry[i] += header.entry[i - 1];
+  header.entry[Header::HEADER] = 0;
+  header.entry[Header::VLE] = nbyte[Header::HEADER];
+  header.entry[Header::ANCHOR] = header.entry[Header::VLE] + nbyte[Header::VLE];
+  if (pred_type == Spline)
+    header.entry[Header::ANCHOR] =
+        align_up(header.entry[Header::ANCHOR], alignof(T));
+  header.entry[Header::SPFMT] =
+      align_up(header.entry[Header::ANCHOR] + nbyte[Header::ANCHOR], alignof(T));
+  header.entry[Header::END] = header.entry[Header::SPFMT] + nbyte[Header::SPFMT];
 
   // copy anchor
   if (pred_type == Spline) concat_d2d(Header::ANCHOR, mem->anchor(), 0);
@@ -358,13 +375,13 @@ try
 #endif
 
   if (ctx->use_huffman) {
-    RTR_COMPRESS((uint8_t*)dst(Header::VLE), nbyte[Header::VLE]+nbyte[Header::ANCHOR]+nbyte[Header::SPFMT], &comp_rtr_out, &comp_rtr_outlen, &time_rtr, stream);
+    RTR_COMPRESS((uint8_t*)dst(Header::VLE), header.entry[Header::END] - header.entry[Header::VLE], &comp_rtr_out, &comp_rtr_outlen, &time_rtr, stream);
     CHECK_GPU(GpuMemcpyAsync(dst(Header::VLE), comp_rtr_out, comp_rtr_outlen, GpuMemcpyD2D, (GpuStreamT)stream));
     CHECK_GPU(GpuStreamSync(stream));
     header.entry[Header::END+1] = header.entry[Header::VLE] + comp_rtr_outlen;
   }
   else{
-    BITR_COMPRESS((uint8_t*)dst(Header::ANCHOR), nbyte[Header::ANCHOR]+nbyte[Header::SPFMT], &comp_bitr_out, &comp_bitr_outlen, &time_bitr, stream);
+    BITR_COMPRESS((uint8_t*)dst(Header::ANCHOR), header.entry[Header::END] - header.entry[Header::ANCHOR], &comp_bitr_out, &comp_bitr_outlen, &time_bitr, stream);
     CHECK_GPU(GpuMemcpyAsync(dst(Header::ANCHOR), comp_bitr_out, comp_bitr_outlen, GpuMemcpyD2D, (GpuStreamT)stream));
     CHECK_GPU(GpuStreamSync(stream));
     header.entry[Header::END+1] = header.entry[Header::ANCHOR] + comp_bitr_outlen;
@@ -432,7 +449,6 @@ COR::decompress_predict(
 
   auto d_anchor = ext_anchor ? ext_anchor : device_anchor;
   // wire and aliasing
-  auto d_space = out;
   auto d_xdata = out;
 
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
@@ -443,17 +459,25 @@ COR::decompress_predict(
 
   if (header->pred_type == Spline) {
 #ifdef PSZ_USE_CUDA
-    mem->xd->dptr(out);
+    if constexpr (std::is_same<T, f8>::value) {
+      throw std::runtime_error(
+          "[psz::error] f64 Spline archives are not supported yet; "
+          "rebuild with Option B Spline f64 support.");
+    }
+    else {
+      mem->xd->dptr(out);
 
-    // TODO release borrow
-    auto aclen3 = mem->ac->template len3<dim3>();
-    pszmem_cxx<T> anchor(aclen3.x, aclen3.y, aclen3.z);
-    anchor.dptr(d_anchor);
+      // TODO release borrow
+      auto aclen3 = mem->ac->template len3<dim3>();
+      pszmem_cxx<T> anchor(aclen3.x, aclen3.y, aclen3.z);
+      anchor.dptr(d_anchor);
 
-    // [psz::TODO] throw exception
+      // [psz::TODO] throw exception
 
-    spline_reconstruct(
-        &anchor, mem->e, mem->xd, outlier_tmp,  eb, radius, intp_param, &time_pred, stream);
+      spline_reconstruct(
+          &anchor, mem->e, mem->xd, outlier_tmp, eb, radius, intp_param,
+          &time_pred, stream);
+    }
 #else
     throw runtime_error(
         "[psz::error] spline_reconstruct not implemented other than CUDA.");
@@ -461,7 +485,8 @@ COR::decompress_predict(
   }
   else {
     psz_decomp_l23<T, E, FP>(
-        mem->ectrl(), len3, d_space, eb, radius, d_xdata, &time_pred, stream);
+        mem->ectrl(), len3, outlier_tmp, eb, radius, d_xdata, &time_pred,
+        stream);
   }
 
   return this;

@@ -23,6 +23,7 @@
 #include "mem.hh"
 #include "tehm.hh"
 #include "lc/lc.h"
+#include "typing.hh"
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
 #include "utils/analyzer.hh"
 #endif
@@ -177,7 +178,11 @@ class CLI {
     auto header = new psz_header;
     memcpy(header, compressed->hptr(), sizeof(psz_header));
     auto len = psz_utils::uncompressed_len(header);
+    if (header->dtype != PszType<T>::type)
+      throw std::runtime_error(
+          "[psz::error] archive dtype does not match selected CLI dtype.");
     ctx->use_huffman = header->with_huffman;
+    ctx->pred_type = header->pred_type;
 
     auto decompressed = new pszmem_cxx<T>(len, 1, 1, "decompressed");
     auto outlier_tmp = new pszmem_cxx<T>(len, 1, 1, "outlier_tmp");
@@ -219,14 +224,13 @@ class CLI {
     // auto predictor = ctx->predictor;
 
     psz_framework* framework = pszdefault_framework();
-    psz_compressor* compressor = psz_create(framework, F4);
+    psz_compressor* compressor = psz_create(framework, PszType<T>::type);
 
 #if defined(PSZ_USE_CUDA) || defined(PSZ_USE_HIP)
     GpuStreamT stream;
     CHECK_GPU(GpuStreamCreate(&stream));
 
-    // TODO enable f8
-    if (ctx->task_dryrun) do_dryrun<float>(ctx);
+    if (ctx->task_dryrun) do_dryrun<T>(ctx);
     if (ctx->task_construct) do_construct(ctx, compressor, stream);
     if (ctx->task_reconstruct) do_reconstruct(ctx, compressor, stream);
     if (stream) GpuStreamDestroy(stream);
@@ -245,8 +249,7 @@ class CLI {
     else
       q = sycl::queue(sycl::default_selector_v, plist);
 
-    // TODO enable f8
-    if (ctx->task_dryrun) do_dryrun<float>(ctx);
+    if (ctx->task_dryrun) do_dryrun<T>(ctx);
     if (ctx->task_construct) do_construct(ctx, compressor, &q);
     if (ctx->task_reconstruct) do_reconstruct(ctx, compressor, &q);
 
