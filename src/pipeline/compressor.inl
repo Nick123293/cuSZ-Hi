@@ -235,7 +235,7 @@ COR::compress_tcms(pszctx* ctx, void* stream)
 
   /* TCMS lossless compression */
   TCMS_COMPRESS(
-      reinterpret_cast<uint8_t*>(mem->ectrl()), len * sizeof(E),
+      mem->ectrl(), len,
       &comp_tcms_out, &comp_tcms_outlen, &time_tcms, stream);
   if (spline_in_use()) { PSZDBG_LOG("TCMS: done"); }
   
