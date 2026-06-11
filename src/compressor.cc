@@ -111,14 +111,10 @@ catch (sycl::exception const& exc) {
 
 }  // namespace cusz
 
-using Ff4 = cusz::TEHM<f4, u1, u4, true>;
+using Ff4 = cusz::TEHM<f4, true>;
 using CFf4 = cusz::Compressor<Ff4>;
-using Ff8 = cusz::TEHM<f8, u1, u4, false>;
+using Ff8 = cusz::TEHM<f8, false>;
 using CFf8 = cusz::Compressor<Ff8>;
-using Ff8U2 = cusz::TEHM<f8, u2, u4, false>;
-using CFf8U2 = cusz::Compressor<Ff8U2>;
-using Ff8U4 = cusz::TEHM<f8, u4, u4, false>;
-using CFf8U4 = cusz::Compressor<Ff8U4>;
 
 template class cusz::Compressor<Ff4>;
 template CFf4* CFf4::init<psz_context>(psz_context* config, bool debug);
@@ -127,11 +123,3 @@ template CFf4* CFf4::init<psz_header>(psz_header* config, bool debug);
 template class cusz::Compressor<Ff8>;
 template CFf8* CFf8::init<psz_context>(psz_context* config, bool debug);
 template CFf8* CFf8::init<psz_header>(psz_header* config, bool debug);
-
-template class cusz::Compressor<Ff8U2>;
-template CFf8U2* CFf8U2::init<psz_context>(psz_context* config, bool debug);
-template CFf8U2* CFf8U2::init<psz_header>(psz_header* config, bool debug);
-
-template class cusz::Compressor<Ff8U4>;
-template CFf8U4* CFf8U4::init<psz_context>(psz_context* config, bool debug);
-template CFf8U4* CFf8U4::init<psz_header>(psz_header* config, bool debug);

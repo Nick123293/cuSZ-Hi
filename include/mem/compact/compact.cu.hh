@@ -51,7 +51,7 @@ struct CompactGpuDram {
     cudaMalloc(&d_val, sizeof(T) * reserved_len);
     cudaMalloc(&d_idx, sizeof(uint32_t) * reserved_len);
     cudaMalloc(&d_num, sizeof(uint32_t) * 1);
-    cudaMemset(d_num, 0x0, sizeof(uint32_t) * 1);  // init outlier counter
+    cudaMemset(d_num, 0x0, sizeof(uint32_t) * 1);  // init outlier counter (Keeps num of possible outliers consistent between data types)
 
     return *this;
   }

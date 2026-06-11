@@ -31,8 +31,6 @@ namespace cusz {
 
 template <
     typename InDtype,
-    typename ErrCtrl = u1,
-    typename Metadata = u4,
     bool FastLowPrecision = std::is_same<InDtype, f4>::value>
 struct TEHM {
  public:
@@ -46,21 +44,19 @@ struct TEHM {
   */
 
   using T = InDtype;
-  using E = ErrCtrl;  // predefined for mem. overlapping
+  using E = ErrCtrlTrait<1, false>::type;  // predefined for mem. overlapping
   using FP = typename FastLowPrecisionTrait<FastLowPrecision>::type;
   // using H = u4;
   // using Hfailsafe = u8;
-  using M = Metadata;
+  using M = MetadataTrait<4>::type;
 
   /* Lossless Codec*/
   using Codec = cusz::HuffmanCodec<E, M>;
 };
 
-using CompressorF4 = cusz::Compressor<cusz::TEHM<f4, u1, u4, true>>;
-using CompressorF8 = cusz::Compressor<cusz::TEHM<f8, u1, u4, false>>;
-using CompressorF8Fast = cusz::Compressor<cusz::TEHM<f8, u1, u4, true>>;
-using CompressorF8U2 = cusz::Compressor<cusz::TEHM<f8, u2, u4, false>>;
-using CompressorF8U4 = cusz::Compressor<cusz::TEHM<f8, u4, u4, false>>;
+using CompressorF4 = cusz::Compressor<cusz::TEHM<f4, true>>;
+using CompressorF8 = cusz::Compressor<cusz::TEHM<f8, false>>;
+// unused currently: using CompressorF8Fast = cusz::Compressor<cusz::TEHM<f8, true>>; 
 
 }  // namespace cusz
 
