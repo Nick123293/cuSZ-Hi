@@ -127,17 +127,10 @@ COR::compress_predict(pszctx* ctx, T* in, void* stream)
   {
     if (spline_in_use()) {
 #ifdef PSZ_USE_CUDA
-      if constexpr (std::is_same<T, f8>::value) {
-        throw std::runtime_error(
-            "[psz::error] f64 Spline is not implemented yet; use "
-            "predictor=lorenzo for double-precision data.");
-      }
-      else {
-        mem->od->dptr(in);
-        spline_construct(
-            mem->od, mem->ac, mem->e, (void*)mem->compact, eb, ctx->rel_eb,
-            radius, ctx->intp_param, &time_pred, stream, mem->pe);
-      }
+      mem->od->dptr(in);
+      spline_construct(
+          mem->od, mem->ac, mem->e, (void*)mem->compact, eb, ctx->rel_eb,
+          radius, ctx->intp_param, &time_pred, stream, mem->pe);
 #else
       throw runtime_error(
           "[psz::error] spline_construct not implemented other than CUDA.");
@@ -459,25 +452,18 @@ COR::decompress_predict(
 
   if (header->pred_type == Spline) {
 #ifdef PSZ_USE_CUDA
-    if constexpr (std::is_same<T, f8>::value) {
-      throw std::runtime_error(
-          "[psz::error] f64 Spline archives are not supported yet; "
-          "rebuild with Option B Spline f64 support.");
-    }
-    else {
-      mem->xd->dptr(out);
+    mem->xd->dptr(out);
 
-      // TODO release borrow
-      auto aclen3 = mem->ac->template len3<dim3>();
-      pszmem_cxx<T> anchor(aclen3.x, aclen3.y, aclen3.z);
-      anchor.dptr(d_anchor);
+    // TODO release borrow
+    auto aclen3 = mem->ac->template len3<dim3>();
+    pszmem_cxx<T> anchor(aclen3.x, aclen3.y, aclen3.z);
+    anchor.dptr(d_anchor);
 
-      // [psz::TODO] throw exception
+    // [psz::TODO] throw exception
 
-      spline_reconstruct(
-          &anchor, mem->e, mem->xd, outlier_tmp, eb, radius, intp_param,
-          &time_pred, stream);
-    }
+    spline_reconstruct(
+        &anchor, mem->e, mem->xd, outlier_tmp, eb, radius, intp_param,
+        &time_pred, stream);
 #else
     throw runtime_error(
         "[psz::error] spline_reconstruct not implemented other than CUDA.");

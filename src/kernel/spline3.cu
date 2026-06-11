@@ -60,8 +60,8 @@ int spline_construct(
 {
   auto div = [](auto _l, auto _subl) { return (_l - 1) / _subl + 1; };
 
-  auto ebx2 = eb * 2;
-  auto eb_r = 1 / eb;
+  FP ebx2 = static_cast<FP>(eb * 2);
+  FP eb_r = static_cast<FP>(1 / eb);
 
   auto l3 = data->template len3<dim3>();
 
@@ -214,7 +214,7 @@ int spline_construct(
 
       // if CONSTEXPR (SPLINE_DIM == 3){
       if (l3.z > 1){
-        cusz::pa_spline_infprecis_data<T*, float, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16, 1, 1, 1, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 9, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>> (data->dptr(), data->template len3<dim3>(), data->template st3<dim3>(), dim3(s_start_x, s_start_y, s_start_z), dim3(s_size_x, s_size_y, s_size_z), dim3(S_STRIDE, S_STRIDE, S_STRIDE), eb_r, ebx2, intp_param, profiling_errors->dptr(), true);
+        cusz::pa_spline_infprecis_data<T*, FP, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16, 1, 1, 1, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 9, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>> (data->dptr(), data->template len3<dim3>(), data->template st3<dim3>(), dim3(s_start_x, s_start_y, s_start_z), dim3(s_size_x, s_size_y, s_size_z), dim3(S_STRIDE, S_STRIDE, S_STRIDE), eb_r, ebx2, intp_param, profiling_errors->dptr(), true);
         
         STOP_GPUEVENT_RECORDING(stream);
         CHECK_GPU(GpuStreamSync(stream));
@@ -291,7 +291,7 @@ int spline_construct(
     if (l3.z == 1){
       //printf("s_size.x = %d, .y = %d, .z = %d\n", s_size_x, s_size_y, s_size_z);
       //printf("l3.x = %d, .y = %d, .z = %d\n", l3.x, l3.y, l3.z);
-      cusz::pa_spline_infprecis_data<T*, float, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>> (data->dptr(), data->template len3<dim3>(), data->template st3<dim3>(), dim3(s_start_x, s_start_y, s_start_z), dim3(s_size_x, s_size_y, s_size_z), dim3(S_STRIDE, S_STRIDE, S_STRIDE), eb_r, ebx2, intp_param, profiling_errors->dptr(), true);
+      cusz::pa_spline_infprecis_data<T*, FP, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>> (data->dptr(), data->template len3<dim3>(), data->template st3<dim3>(), dim3(s_start_x, s_start_y, s_start_z), dim3(s_size_x, s_size_y, s_size_z), dim3(S_STRIDE, S_STRIDE, S_STRIDE), eb_r, ebx2, intp_param, profiling_errors->dptr(), true);
         
       STOP_GPUEVENT_RECORDING(stream);
       CHECK_GPU(GpuStreamSync(stream));
@@ -406,7 +406,7 @@ int spline_construct(
          START_GPUEVENT_RECORDING(stream);
 
         if (l3.z != 1)
-        cusz::pa_spline_infprecis_data<T*, float, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16, 1, 1, 1, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1),0, (GpuStreamT)stream>>>(
+        cusz::pa_spline_infprecis_data<T*, FP, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16, 1, 1, 1, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1),0, (GpuStreamT)stream>>>(
           data->dptr(),
           data->template len3<dim3>(),
           data->template st3<dim3>(),
@@ -418,7 +418,7 @@ int spline_construct(
           intp_param,
           profiling_errors->dptr(),
           false);
-        else cusz::pa_spline_infprecis_data<T*, float, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1),0, (GpuStreamT)stream>>>(
+        else cusz::pa_spline_infprecis_data<T*, FP, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ, numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE><<<dim3(s_size_x * s_size_y * s_size_z, 11, 1), dim3(DEFAULT_BLOCK_SIZE, 1, 1),0, (GpuStreamT)stream>>>(
           data->dptr(),
           data->template len3<dim3>(),
           data->template st3<dim3>(),
@@ -513,7 +513,7 @@ int spline_construct(
       dim3(div(l3.x, AnchorBlockSizeX * numAnchorBlockX),
           div(l3.y, AnchorBlockSizeY * numAnchorBlockY),
           div(l3.z, AnchorBlockSizeZ * numAnchorBlockZ));
-      cusz::c_spline_infprecis_data<T*, E*, float, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ,
+      cusz::c_spline_infprecis_data<T*, E*, FP, LEVEL, SPLINE_DIM_2, AnchorBlockSizeX, AnchorBlockSizeY, AnchorBlockSizeZ,
     numAnchorBlockX, numAnchorBlockY, numAnchorBlockZ, DEFAULT_BLOCK_SIZE>  //
         <<<grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>(
             data->dptr(), data->template len3<dim3>(),
@@ -527,7 +527,7 @@ int spline_construct(
     auto grid_dim = dim3(div(l3.x, BLOCK16),
           div(l3.y, BLOCK16),
           div(l3.z, BLOCK16));
-    cusz::c_spline_infprecis_data<T*, E*, float, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16,
+    cusz::c_spline_infprecis_data<T*, E*, FP, 4, SPLINE_DIM_3, BLOCK16, BLOCK16, BLOCK16,
     1, 1, 1, DEFAULT_BLOCK_SIZE>  //
         <<<grid_dim, dim3(DEFAULT_BLOCK_SIZE, 1, 1), 0, (GpuStreamT)stream>>>(
             data->dptr(), data->template len3<dim3>(),
@@ -556,8 +556,8 @@ int spline_reconstruct(
 
   auto div = [](auto _l, auto _subl) { return (_l - 1) / _subl + 1; };
 
-  auto ebx2 = eb * 2;
-  auto eb_r = 1 / eb;
+  FP ebx2 = static_cast<FP>(eb * 2);
+  FP eb_r = static_cast<FP>(1 / eb);
 
   auto l3 = xdata->template len3<dim3>();
 
@@ -616,9 +616,9 @@ INIT(f4, u2, f4)
 INIT(f4, u4, f4)
 INIT(f4, f4, f4)
 
-//INIT(f8, u1, f8) //placeholder for double input
-//INIT(f8, u2, f8)
-//INIT(f8, u4, f8)
+INIT(f8, u1, f8)
+INIT(f8, u2, f8)
+INIT(f8, u4, f8)
 //INIT(f8, f4, f8)
 #undef INIT
 #undef SETUP
