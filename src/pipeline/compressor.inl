@@ -340,6 +340,18 @@ try
       align_up(header.entry[Header::ANCHOR] + nbyte[Header::ANCHOR], alignof(T));
   header.entry[Header::END] = header.entry[Header::SPFMT] + nbyte[Header::SPFMT];
 
+  /*
+  Dynamic re-sizing or compressed data buffer if it is not large enough
+  This is currently unused because it affects throughput, and not having this 
+  sets a limit to our number of a minimum compression ratio
+   if (header.entry[Header::END] > mem->_compressed->m->bytes) { 
+     delete mem->_compressed;
+     mem->_compressed =
+         new pszmem_cxx<B>(header.entry[Header::END], 1, 1, "compressed");
+     mem->_compressed->control({Malloc, MallocHost});
+   }
+  */
+
   // copy anchor
   if (pred_type == Spline) concat_d2d(Header::ANCHOR, mem->anchor(), 0);
   if (ctx->use_huffman) {
